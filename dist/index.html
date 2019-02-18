@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Ola Fare Variation</title>
+    <style>
+      .accordion {
+        background-color: #eee;
+        color: #444;
+        cursor: pointer;
+        padding: 18px;
+        width: 100%;
+        border: none;
+        text-align: left;
+        outline: none;
+        font-size: 15px;
+        transition: 0.4s;
+        margin-top: 20px;
+        font-size: 1.6em;
+      }
+
+      .active,
+      .accordion:hover {
+        background-color: #ccc;
+      }
+
+      .panel {
+        padding: 0 18px;
+        /* display: none; */
+        background-color: white;
+        overflow: hidden;
+      }
+
+      .button-reload {
+        background-color: dodgerblue;
+        color: white;
+        font-weight: 600;
+        border: 0;
+        padding: 10px;
+        margin-top: 10px;
+      }
+
+      .button-reload:hover {
+        background-color: rgb(20, 129, 238);
+      }
+      .options {
+        font-size: 1.2em;
+        margin: 3px 3px 0px 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <h1 style="text-align: center;">
+        {{ title }} <br />
+        <button @click="reloadData" class="button-reload">
+          <span style="font-size:20px;font-weight:600;">&#8634;</span>
+          Reload Data
+        </button>
+      </h1>
+      <div class="options">
+        <input
+          type="radio"
+          id="micro"
+          value="micro"
+          v-model="optionPicked"
+          @change="refreshDataForCategory"
+        />
+        <label for="micro">Micro</label>
+        <input
+          type="radio"
+          id="mini"
+          value="mini"
+          v-model="optionPicked"
+          @change="refreshDataForCategory"
+        />
+        <label for="mini">Mini</label>
+        <input
+          type="radio"
+          id="prime"
+          value="prime"
+          v-model="optionPicked"
+          @change="refreshDataForCategory"
+        />
+        <label for="prime">prime</label>
+      </div>
+
+      <button
+        class="accordion"
+        @click="showHomeToOfcTable = !showHomeToOfcTable"
+      >
+        Home To Office Rates
+      </button>
+      <div class="panel" v-if="showHomeToOfcTable">
+        <table>
+          <tr>
+            <td>Timestamp</td>
+            <td>Type</td>
+            <td>Min</td>
+            <td>Max</td>
+          </tr>
+          <tr v-for="rate in homeToOfcRates">
+            <td>{{ getFormattedDate(rate.timestamp) }}</td>
+            <td>{{ rate.type.toUpperCase() }}</td>
+            <td>{{ rate.min }}</td>
+            <td>{{ rate.max }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <bar-chart
+        v-if="homeToOfcDataLoaded"
+        :chart-data="homeToOfcChartData"
+      ></bar-chart>
+
+      <button
+        class="accordion"
+        @click="showOfcToHomeTable = !showOfcToHomeTable"
+      >
+        Office To Home Rates
+      </button>
+      <div class="panel" v-if="showOfcToHomeTable">
+        <table>
+          <tr>
+            <td>Timestamp</td>
+            <td>Type</td>
+            <td>Min</td>
+            <td>Max</td>
+          </tr>
+          <tr v-for="rate in ofcToHomeRates">
+            <td>{{ getFormattedDate(rate.timestamp) }}</td>
+            <td>{{ rate.type.toUpperCase() }}</td>
+            <td>{{ rate.min }}</td>
+            <td>{{ rate.max }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <bar-chart
+        v-if="ofcToHomeDataLoaded"
+        :chart-data="ofcToHomeChartData"
+      ></bar-chart>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.min.js"></script>
+    <script src="https://unpkg.com/vue-chartjs/dist/vue-chartjs.min.js"></script>
+    <script>
+      Vue.component("bar-chart", {
+        extends: VueChartJs.Bar,
+        props: ["chartData"],
+
+        async mounted() {
+          this.chartDataConfig = this.chartData;
+          this.renderChart(this.chartDataConfig, this.chartOptions);
+        },
+
+        data() {
+          return {
+            loaded: false,
+            chartDataConfig: {},
+            chartOptions: {
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          };
+        },
+        watch: {
+          chartData: function(newVal, oldVal) {
+            // watch it
+            this.chartDataConfig = newVal;
+            this.loaded = true;
+            this.renderChart(this.chartDataConfig, this.chartOptions);
+          }
+        }
+      });
+
+      const vueApp = new Vue({
+        el: "#app",
+        data: {
+          title: "Ola Fare Variation",
+          optionPicked: "mini",
+          homeToOfcDataLoaded: false,
+          ofcToHomeDataLoaded: false,
+          showHomeToOfcTable: false,
+          showOfcToHomeTable: false,
+          homeToOfcRates: [],
+          ofcToHomeRates: [],
+          homeToOfcChartData: {},
+          ofcToHomeChartData: {}
+        },
+        mounted: function() {
+          this.getHomeToOfficeRates();
+          this.getOfficeToHomeRates();
+        },
+        methods: {
+          getHomeToOfficeRates: function() {
+            var self = this;
+            axios
+              .get(
+                "/getHomeToOfcRates?type=" +
+                  this.optionPicked +
+                  "&route=ofc_to_home"
+              )
+              .then(function(response) {
+                // handle success
+                self.homeToOfcDataLoaded = true;
+
+                //   console.log(response.data);
+                if (response && response.data) {
+                  self.homeToOfcRates = response.data;
+                  self.homeToOfcChartData = self.prepareResponseForChart(
+                    response.data,
+                    {
+                      minRatesLabel:
+                        "Fares from Home to Office: Min Fare Range - Mini Cars",
+                      maxRatesLabel:
+                        "Fares from Home to Office: Max Fare Range - Mini Cars"
+                    }
+                  );
+                }
+                //   console.log(response.data);
+              })
+              .catch(function(error) {
+                // handle error
+                console.log(error);
+              })
+              .then(function() {
+                // always executed
+              });
+          },
+          getOfficeToHomeRates: function() {
+            var self = this;
+            axios
+              .get(
+                "/getOfficeToHomeRates?type=" +
+                  this.optionPicked +
+                  "&route=home_to_ofc"
+              )
+              .then(function(response) {
+                // handle success
+                self.ofcToHomeDataLoaded = true;
+                console.log(response.data);
+
+                if (response && response.data) {
+                  self.ofcToHomeRates = response.data;
+
+                  self.ofcToHomeChartData = self.prepareResponseForChart(
+                    response.data,
+                    {
+                      minRatesLabel:
+                        "Fares from Office to Home: Min Fare Range - Mini Cars",
+                      maxRatesLabel:
+                        "Fares from Office to Home: Max Fare Range - Mini Cars"
+                    }
+                  );
+                }
+              })
+              .catch(function(error) {
+                // handle error
+                console.log(error);
+              })
+              .then(function() {
+                // always executed
+              });
+          },
+          refreshDataForCategory: function() {
+            this.getHomeToOfficeRates();
+            this.getOfficeToHomeRates();
+          },
+          getFormattedDate: function(timestamp) {
+            if (timestamp) {
+              var d = new Date(timestamp);
+              d =
+                ("00" + (d.getMonth() + 1)).slice(-2) +
+                "/" +
+                ("00" + d.getDate()).slice(-2) +
+                "/" +
+                d.getFullYear() +
+                " " +
+                ("00" + d.getHours()).slice(-2) +
+                ":" +
+                ("00" + d.getMinutes()).slice(-2) +
+                ":" +
+                ("00" + d.getSeconds()).slice(-2);
+
+              return d;
+            }
+          },
+          padLeft: function(base, chr) {
+            var len = String(base || 10).length - String(this).length + 1;
+            return len > 0 ? new Array(len).join(chr || "0") + this : this;
+          },
+          prepareResponseForChart: function(rates, chartLabels) {
+            let labels = [],
+              datasetMaxRatesData = [],
+              datasetMinRatesData = [];
+            for (let i = 0; i < rates.length; i++) {
+              let rate = rates[i];
+              labels.push(this.getFormattedDate(new Date(rate.timestamp)));
+              datasetMaxRatesData.push(rate.max);
+              datasetMinRatesData.push(rate.min);
+            }
+
+            return {
+              labels: labels,
+              datasets: [
+                {
+                  label: chartLabels.minRatesLabel,
+                  backgroundColor: "dodgerblue",
+                  data: datasetMinRatesData
+                },
+                {
+                  label: chartLabels.maxRatesLabel,
+                  backgroundColor: "#f87979",
+                  data: datasetMaxRatesData
+                }
+              ]
+            };
+          },
+          reloadData: function() {
+            axios
+              .get("/reloaddb")
+              .then(function(response) {
+                console.log(response.data);
+                window.location.reload();
+              })
+              .catch(function(error) {
+                // handle error
+                console.log(error);
+              })
+              .then(function() {
+                // always executed
+              });
+          }
+        },
+        watch: {
+          minChartData: function(newVal, oldVal) {
+            // watch it
+            console.log("Prop1 changed: ", newVal, " | was: ", oldVal);
+            this.minChartData = newVal;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
