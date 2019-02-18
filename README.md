@@ -1,7 +1,7 @@
 ## NodeJS app to fetch Ola fares for a specific source and destination.
 
 ## To run the project follow these steps:
-1. Download the source code from github: `git clone ola-fare-trend`
+1. Download the source code from github: `git clone https://github.com/kshwetabh/ola-fare-trend.git)`
 2. Install the dependencies: `npm install`
 3. On the first run you must create a sqlite3 database
    1. Run this command to create the database and related tables: `node migrate.js`
