@@ -55,6 +55,11 @@ setInterval(function() {
 
 function writeDataToDatabase(dataArr) {
   var db = new sqlite3.Database(DBFILE);
+  // console.log(
+  //   `Writing into database: Route:${dataArr[0]} Type:${dataArr[2]} Min:${
+  //     dataArr[3]
+  //   } Max:${dataArr[4]}`
+  // );
   var stmt = db.prepare(
     "INSERT INTO FARE (route, timestamp, type, min, max) values (?, ?, ?, ?, ?)"
   );
